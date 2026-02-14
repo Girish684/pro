@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MemoGraph · notes + graphs</title>
+  <!-- Google Font & Font Awesome for fresh UI -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- Chart.js for flexible graph rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(145deg, #f0f4ff 0%, #e6e9ff 100%);
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dashboard {
+      max-width: 1400px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.4);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-radius: 3rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 20, 60, 0.1);
+      padding: 2.5rem 2rem;
+      border: 1px solid rgba(255,255,255,0.5);
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #1a1f3b;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 0.3rem;
+    }
+
+    h1 i {
+      background: #2a2f5a;
+      color: white;
+      padding: 12px;
+      border-radius: 30px;
+      font-size: 1.4rem;
+      box-shadow: 0 8px 12px rgba(0,20,50,0.15);
+    }
+
+    .subhead {
+      font-size: 1.1rem;
+      color: #2f3a6b;
+      margin-bottom: 2.2rem;
+      margin-left: 0.5rem;
+      font-weight: 400;
+      border-left: 5px solid #4f5b9e;
+      padding-left: 1rem;
+      background: linear-gradient(to right, rgba(255,255,255,0.3), transparent);
+    }
+
+    /* two-column grid */
+    .split-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 1rem;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(4px);
+      border-radius: 2rem;
+      padding: 1.8rem 1.5rem;
+      box-shadow: 0 12px 28px rgba(0, 10, 30, 0.1);
+      border: 1px solid rgba(255,255,255,0.7);
+      transition: all 0.15s ease;
+    }
+
+    .card:hover {
+      background: rgba(255, 255, 255, 0.85);
+      box-shadow: 0 20px 32px rgba(30, 40, 80, 0.15);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1.8rem;
+      font-weight: 600;
+      font-size: 1.6rem;
+      color: #12172f;
+      border-bottom: 2px solid rgba(70, 80, 130, 0.2);
+      padding-bottom: 0.8rem;
+    }
+
+    .card-header i {
+      font-size: 2rem;
+      color: #38457c;
+    }
+
+    /* inputs & buttons */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .field {
+      background: white;
+      border: none;
+      border-radius: 2.5rem;
+      padding: 1rem 1.5rem;
+      font-size: 1rem;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.02), inset 0 2px 4px rgba(0,0,0,0.01);
+      border: 1px solid rgba(0,0,0,0.02);
+      transition: 0.2s;
+    }
+
+    .field:focus {
+      outline: none;
+      border-color: #4f6fdf;
+      box-shadow: 0 0 0 4px rgba(79, 111, 223, 0.2);
+    }
+
+    button {
+      background: #2a2f5a;
+      border: none;
+      color: white;
+      padding: 0.9rem 1.8rem;
+      border-radius: 3rem;
+      font-weight: 500;
+      font-size: 1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+      cursor: pointer;
+      transition: 0.15s;
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 8px 18px rgba(30,40,80,0.2);
+      letter-spacing: -0.01em;
+    }
+
+    button:hover {
+      background: #3b4180;
+      transform: scale(1.02);
+    }
+
+    button.secondary {
+      background: rgba(255,255,255,0.8);
+      color: #1f2544;
+      border: 1px solid #ccd2f0;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    }
+
+    button.secondary:hover {
+      background: white;
+    }
+
+    .small-btn {
+      padding: 0.5rem 1.2rem;
+      font-size: 0.9rem;
+    }
+
+    /* note cards container */
+    .notes-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1.8rem;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+    }
+
+    .note-item {
+      background: white;
+      border-radius: 1.5rem;
+      padding: 1.2rem 1.5rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+      border-left: 8px solid #4f5faf;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      transition: 0.1s;
+      backdrop-filter: blur(2px);
+    }
+
+    .note-content {
+      flex: 1;
+    }
+
+    .note-title {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #12172f;
+    }
+
+    .note-text {
+      color: #2a325a;
+      margin-top: 0.3rem;
+      font-size: 0.95rem;
+      word-break: break-word;
+    }
+
+    .delete-note {
+      background: none;
+      border: none;
+      color: #b0b6d3;
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 0.4rem;
+      border-radius: 50%;
+      transition: 0.1s;
+      box-shadow: none;
+    }
+
+    .delete-note:hover {
+      color: #dc3545;
+      background: rgba(220,53,69,0.1);
+      transform: scale(1.1);
+    }
+
+    /* data list for graph */
+    .data-list {
+      margin: 1.8rem 0 1.2rem;
+      background: rgba(255,255,255,0.5);
+      border-radius: 1.8rem;
+      padding: 1.2rem;
+    }
+
+    .data-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 0.7rem 1.2rem;
+      border-radius: 3rem;
+      margin-bottom: 0.6rem;
+      font-weight: 500;
+    }
+
+    .data-value {
+      background: #eef1ff;
+      padding: 0.2rem 1rem;
+      border-radius: 40px;
+      color: #1f2b5c;
+    }
+
+    .delete-data {
+      background: transparent;
+      border: none;
+      color: #8d96c0;
+      box-shadow: none;
+      padding: 0.2rem 0.8rem;
+    }
+    .delete-data:hover {
+      color: #c53030;
+      background: transparent;
+      transform: scale(1.2);
+    }
+
+    .chart-type {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin: 1rem 0 1.5rem;
+    }
+
+    .chart-type select {
+      background: white;
+      border-radius: 2rem;
+      padding: 0.6rem 1.5rem;
+      border: 1px solid #cfd6f0;
+      font-weight: 500;
+      color: #1f2544;
+    }
+
+    canvas {
+      max-height: 260px;
+      max-width: 100%;
+      background: rgba(255,255,255,0.4);
+      border-radius: 2rem;
+      padding: 1rem 1rem 0.5rem 0.5rem;
+      margin-top: 1rem;
+    }
+
+    .action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    /* empty placeholders */
+    .empty-message {
+      color: #5b6390;
+      text-align: center;
+      padding: 2rem;
+      font-style: italic;
+      background: rgba(255,255,255,0.3);
+      border-radius: 3rem;
+    }
+
+    /* responsive */
+    @media (max-width: 800px) {
+      .split-panel { grid-template-columns: 1fr; gap: 1.5rem; }
+      .dashboard { padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="dashboard">
+  <h1>
+    <i class="fas fa-pen-fancy"></i> MemoGraph
+  </h1>
+  <div class="subhead">
+    <i class="fas fa-smile-wink" style="margin-right: 10px;"></i> sketch notes · plot ideas — let's start!
+  </div>
+
+  <div class="split-panel">
+    <!-- LEFT: NOTE MAKING ZONE -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-clipboard-list"></i> sticky notes
+      </div>
+      <div class="input-group">
+        <input type="text" id="noteTitle" class="field" placeholder="title (optional)" autocomplete="off">
+        <textarea id="noteContent" class="field" rows="2" placeholder="write your note ..."></textarea>
+        <button id="addNoteBtn"><i class="fas fa-plus-circle"></i> add note</button>
+      </div>
+      <div id="notesContainer" class="notes-grid">
+        <!-- dynamic notes will appear here -->
+        <div class="empty-message"><i class="far fa-smile"></i> your notes will show up here</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: GRAPH CREATOR -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-chart-line"></i> graph builder
+      </div>
+
+      <!-- data input row -->
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <input type="text" id="dataLabel" class="field" placeholder="label (e.g. 2025)" style="flex: 2;">
+        <input type="number" id="dataValue" class="field" placeholder="value" style="flex: 1;">
+        <button id="addDataBtn" class="secondary small-btn" style="white-space: nowrap;"><i class="fas fa-arrow-up"></i> add</button>
+      </div>
+
+      <!-- dynamic data list -->
+      <div id="dataListContainer" class="data-list">
+        <!-- filled by js -->
+        <div class="empty-message" style="padding:0.8rem;">➕ add some data points</div>
+      </div>
+
+      <!-- chart type & actions -->
+      <div class="chart-type">
+        <i class="fas fa-chart-pie" style="color:#38457c;"></i>
+        <select id="chartTypeSelect">
+          <option value="bar">📊 Bar chart</option>
+          <option value="line">📈 Line chart</option>
+        </select>
+      </div>
+
+      <div class="action-bar">
+        <button id="drawChartBtn"><i class="fas fa-play"></i> draw graph</button>
+        <button id="clearDataBtn" class="secondary"><i class="fas fa-eraser"></i> clear data</button>
+      </div>
+
+      <!-- canvas for chart -->
+      <canvas id="myChart" width="400" height="220" style="width:100%; height:auto; background: rgba(255,255,255,0.6);"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // ---------- GLOBAL STATE ----------
+    // notes
+    let notes = [];
+
+    // graph data
+    let graphData = [];   // each item { label, value }
+
+    // chart instance
+    let chartInstance = null;
+
+    // DOM elements
+    const noteTitle = document.getElementById('noteTitle');
+    const noteContent = document.getElementById('noteContent');
+    const addNoteBtn = document.getElementById('addNoteBtn');
+    const notesContainer = document.getElementById('notesContainer');
+
+    const dataLabel = document.getElementById('dataLabel');
+    const dataValue = document.getElementById('dataValue');
+    const addDataBtn = document.getElementById('addDataBtn');
+    const dataListContainer = document.getElementById('dataListContainer');
+    const drawChartBtn = document.getElementById('drawChartBtn');
+    const clearDataBtn = document.getElementById('clearDataBtn');
+    const chartTypeSelect = document.getElementById('chartTypeSelect');
+    const canvas = document.getElementById('myChart');
+
+    // ---------- NOTES: LOCALSTORAGE INIT ----------
+    function loadNotesFromStorage() {
+      const stored = localStorage.getItem('memograph_notes');
+      if (stored) {
+        try {
+          notes = JSON.parse(stored);
+        } catch (e) {
+          notes = [];
+        }
+      } else {
+        notes = [];
+      }
+      renderNotes();
+    }
+
+    function saveNotesToStorage() {
+      localStorage.setItem('memograph_notes', JSON.stringify(notes));
+    }
+
+    // render notes inside container
+    function renderNotes() {
+      if (notes.length === 0) {
+        notesContainer.innerHTML = `<div class="empty-message"><i class="far fa-smile"></i> your notes will show up here</div>`;
+        return;
+      }
+      let html = '';
+      notes.forEach(note => {
+        html += `
+          <div class="note-item" data-id="${note.id}">
+            <div class="note-content">
+              <div class="note-title">${escapeHtml(note.title) || '📌 note'}</div>
+              <div class="note-text">${escapeHtml(note.content) || '⋯'}</div>
+            </div>
+            <button class="delete-note" data-id="${note.id}" title="delete note"><i class="fas fa-trash-alt"></i></button>
+          </div>
+        `;
+      });
+      notesContainer.innerHTML = html;
+    }
+
+    // simple escape for security
+    function escapeHtml(str) {
+      if (!str) return str;
+      return String(str).replace(/[&<>"]/g, function(match) {
+        if (match === '&') return '&amp;';
+        if (match === '<') return '&lt;';
+        if (match === '>') return '&gt;';
+        if (match === '"') return '&quot;';
+        return match;
+      });
+    }
+
+    // add new note
+    function addNote() {
+      const title = noteTitle.value.trim();
+      const content = noteContent.value.trim();
+      if (!title && !content) {
+        alert('please write something before adding');
+        return;
+      }
+      const newNote = {
+        id: Date.now() + Math.floor(Math.random()*1000),
+        title: title || '✨ note',
+        content: content || '…'
+      };
+      notes.push(newNote);
+      saveNotesToStorage();
+      renderNotes();
+      noteTitle.value = '';
+      noteContent.value = '';
+    }
+
+    // delete note
+    function deleteNoteById(id) {
+      notes = notes.filter(n => n.id != id);  // loose equality because id from dataset is string
+      saveNotesToStorage();
+      renderNotes();
+    }
+
+    // ---------- GRAPH DATA LOGIC ----------
+    function renderDataList() {
+      if (graphData.length === 0) {
+        dataListContainer.innerHTML = `<div class="empty-message" style="padding:0.8rem;">➕ add some data points</div>`;
+        return;
+      }
+      let itemsHtml = '';
+      graphData.forEach((item, index) => {
+        itemsHtml += `
+          <div class="data-item">
+            <span><i class="fas fa-tag" style="color:#4f5faf; margin-right:6px;"></i>${escapeHtml(item.label)}</span>
+            <span class="data-value">${Number(item.value).toFixed(1)}</span>
+            <button class="delete-data" data-index="${index}"><i class="fas fa-times-circle"></i></button>
+          </div>
+        `;
+      });
+      dataListContainer.innerHTML = itemsHtml;
+    }
+
+    function addDataPoint() {
+      const label = dataLabel.value.trim();
+      const val = parseFloat(dataValue.value);
+      if (!label) {
+        alert('please enter a label');
+        return;
+      }
+      if (isNaN(val)) {
+        alert('value must be a valid number');
+        return;
+      }
+      graphData.push({ label, value: val });
+      renderDataList();
+      // clear inputs
+      dataLabel.value = '';
+      dataValue.value = '';
+      // destroy previous chart to keep consistency (user must click draw)
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+    }
+
+    function removeDataPoint(index) {
+      if (index >= 0 && index < graphData.length) {
+        graphData.splice(index, 1);
+        renderDataList();
+        if (chartInstance) {
+          chartInstance.destroy();
+          chartInstance = null;
+        }
+      }
+    }
+
+    function clearAllData() {
+      graphData = [];
+      renderDataList();
+      if (chartInstance) {
+        chartInstance.destroy();
+        chartInstance = null;
+      }
+    }
+
+    function drawChart() {
+      if (graphData.length === 0) {
+        alert('please add some data first');
+        return;
+      }
+
+      const ctx = canvas.getContext('2d');
+      // destroy old chart
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      const labels = graphData.map(d => d.label);
+      const values = graphData.map(d => d.value);
+      const chartType = chartTypeSelect.value; // 'bar' or 'line'
+
+      chartInstance = new Chart(ctx, {
+        type: chartType,
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'values',
+            data: values,
+            backgroundColor: 'rgba(79, 95, 175, 0.7)',
+            borderColor: '#2a2f5a',
+            borderWidth: 2,
+            tension: 0.2,
+            pointBackgroundColor: '#1f2544',
+            pointBorderColor: 'white',
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            fill: chartType === 'line' ? false : true,  // better look
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: '#1f2544' }
+          },
+          scales: {
+            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.03)' } },
+            x: { grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // ---------- EVENT LISTENERS ----------
+    addNoteBtn.addEventListener('click', addNote);
+
+    // note deletion via delegation
+    notesContainer.addEventListener('click', (e) => {
+      const deleteBtn = e.target.closest('.delete-note');
+      if (deleteBtn) {
+        const id = deleteBtn.getAttribute('data-id');
+        if (id) deleteNoteById(id);
+      }
+    });
+
+    // graph: add data
+    addDataBtn.addEventListener('click', addDataPoint);
+
+    // graph: delete data via delegation
+    dataListContainer.addEventListener('click', (e) => {
+      const delBtn = e.target.closest('.delete-data');
+      if (delBtn) {
+        const idx = delBtn.getAttribute('data-index');
+        if (idx !== null) removeDataPoint(parseInt(idx, 10));
+      }
+    });
+
+    drawChartBtn.addEventListener('click', drawChart);
+
+    clearDataBtn.addEventListener('click', clearAllData);
+
+    // optional: press enter in inputs (graph)
+    dataValue.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addDataPoint();
+      }
+    });
+
+    // load notes at start
+    loadNotesFromStorage();
+
+    // prepopulate graph with a demo example? (optional, but makes it friendlier)
+    // let's add two cute demo points to show functionality.
+    graphData.push({ label: 'Jan', value: 42 }, { label: 'Feb', value: 58 }, { label: 'Mar', value: 32 });
+    renderDataList();
+    // we won't auto-draw, user can draw.
+  })();
+</script>
+<!-- small extra style for note scroll -->
+<style>
+  .notes-grid::-webkit-scrollbar { width: 8px; }
+  .notes-grid::-webkit-scrollbar-track { background: rgba(255,255,240,0.2); border-radius: 20px; }
+  .notes-grid::-webkit-scrollbar-thumb { background: #a7b1da; border-radius: 20px; }
+</style>
+</body>
+</html>
